@@ -67,7 +67,7 @@ def get_image_edges(image, threshold_1=50, threshold_2=200, edges=255):
     return image_edges
 
 
-def extract_display(image_resized, image_grayed, image_edged):
+def extract_display(image_resized, image_grayed, image_edged, epsilon_factor=0.02):
     # step 5: find contours in the edge map, then sort them by their size in descending order
 
     contours = cv2.findContours(image_edged.copy(), cv2.RETR_EXTERNAL,
@@ -81,9 +81,10 @@ def extract_display(image_resized, image_grayed, image_edged):
 
         # approximate the contour
         peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        approx = cv2.approxPolyDP(
+            curve=c, epsilon=epsilon_factor * peri, closed=True)
 
-        # if the contour has four vertices, then we have found the thermostat display
+        # if the contour has four vertices, then we have found the display
         if len(approx) == 4:
             countoursOfDisplay = approx
             break
@@ -182,7 +183,7 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
     digits = []
 
     # Initialize counter
-    digit_count = 1
+    digit_count = 0
 
     # loop over each of the digits
     for c in contours_of_digits:
