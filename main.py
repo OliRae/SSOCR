@@ -30,15 +30,15 @@ display_grayed, display = f.extract_display(
 
 # step 6: make display binary (black or white)
 display_binary = f.make_pixels_black_or_white(
-    display_grayed, threshold=0, maximum_value=255)
+    display_grayed, threshold=50)
 
 # step 7: remove noise from display
 display_binary_sharp = f.remove_noise_from_image(
-    display_binary, shape=cv2.MORPH_ELLIPSE, size=(1, 5))
+    display_binary, shape=cv2.MORPH_ELLIPSE, size=(8, 12))
 
 # step 8: find digit areas
 contoursOfDigits = f.find_digit_areas(
-    binary_display_without_noise=display_binary_sharp, display=display, min_width_digit_area=15, max_width_digit_area=30, min_height_digit_area=30, max_height_digit_area=40)
+    binary_display_without_noise=display_binary_sharp, display=display, min_width_digit_area=100, max_width_digit_area=170, min_height_digit_area=180, max_height_digit_area=250)
 
 # step 9: read digits
 result = f.read_digits(

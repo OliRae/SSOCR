@@ -95,18 +95,23 @@ def extract_display(image_resized, image_grayed, image_edged, epsilon_factor=0.0
     image_display = four_point_transform(
         image_resized, countoursOfDisplay.reshape(4, 2))
 
+    # resize images
+    image_display_grayed = resize_image(
+        image_display_grayed, image_height=500)
+    image_display = resize_image(image_display, image_height=500)
+
     # write out image
     cv2.imwrite("steps/step_5_display.jpg", image_display)
 
     return image_display_grayed, image_display
 
 
-def make_pixels_black_or_white(image, threshold=0, maximum_value=255):
+def make_pixels_black_or_white(image, threshold=0):
     # step 6: make image negative
 
     # For every pixel, the same threshold value is applied. If the pixel value is smaller than the threshold, it is set to 0, otherwise it is set to a maximum value.
-    binary_image = cv2.threshold(src=image, thresh=threshold, maxval=maximum_value,
-                                 type=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+    binary_image = cv2.threshold(src=image, thresh=threshold, maxval=255,
+                                 type=cv2.THRESH_BINARY_INV)[1]
 
     # write out image
     cv2.imwrite("steps/step_6_black_or_white_pixels.jpg",
@@ -118,15 +123,24 @@ def make_pixels_black_or_white(image, threshold=0, maximum_value=255):
 def remove_noise_from_image(binary_image, shape=cv2.MORPH_ELLIPSE, size=(1, 5)):
     # step 7: remove noise from image
 
-    # opening is just another name of erosion followed by dilation. It is useful in removing noise
+    # define structuring element
     kernel = cv2.getStructuringElement(shape=shape, ksize=size)
-    image_noise_removed = cv2.morphologyEx(
+
+    # remove noise
+    image_opening = cv2.morphologyEx(
         src=binary_image, op=cv2.MORPH_OPEN, kernel=kernel)
 
     # write out image
-    cv2.imwrite("steps/step_7_noise_removed.jpg", image_noise_removed)
+    cv2.imwrite("steps/step_7_opening.jpg", image_opening)
 
-    return image_noise_removed
+    # close small holes inside the foreground objects, or small black points on the object
+    image_closing = cv2.morphologyEx(
+        src=image_opening, op=cv2.MORPH_CLOSE, kernel=kernel)
+
+    # write out image
+    cv2.imwrite("steps/step_7_noise_removed.jpg", image_closing)
+
+    return image_closing
 
 
 def find_digit_areas(binary_display_without_noise, display, min_width_digit_area=15, max_width_digit_area=30, min_height_digit_area=30, max_height_digit_area=40):
