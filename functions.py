@@ -174,7 +174,11 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
         (1, 1, 1, 1, 0, 1, 1): 9
     }
 
-    # sort the contours from left-to-right, then initialize the actual digits themselves
+    # sort the contours from left-to-right
+    contours_of_digits = contours.sort_contours(
+        contours_of_digits, method="left-to-right")[0]
+
+    # initialize the actual digits themselves
     digits = []
 
     # Initialize counter
@@ -225,8 +229,7 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
         digit = DIGITS_LOOKUP[tuple(on)]
         digits.append(digit)
         cv2.rectangle(display, (x, y), (x + w, y + h), (0, 255, 0), 1)
-        cv2.putText(display, str(digit), (x - 10, y - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
+        # cv2.putText(display, str(digit), (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
 
     # Make image bigger
     display = resize_image(display, image_height=300)
@@ -234,7 +237,7 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
     # Write out image
     cv2.imwrite("steps/step_9_result.jpg", display)
 
-    cv2.imshow(winname="Result", mat=display)
-
+    cv2.imshow(winname="Result is " + str(digits), mat=display)
     cv2.waitKey()
+
     return digits
