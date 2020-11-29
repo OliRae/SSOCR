@@ -120,25 +120,30 @@ def make_pixels_black_or_white(image, threshold=0):
     return binary_image
 
 
-def remove_noise_from_image(binary_image, shape=cv2.MORPH_ELLIPSE, size=(1, 5)):
+def remove_noise_from_image(binary_image, shape_opening=cv2.MORPH_ELLIPSE, shape_closing=cv2.MORPH_ELLIPSE, size_opening=(1, 5), size_closing=(1, 5)):
     # step 7: remove noise from image
 
-    # define structuring element
-    kernel = cv2.getStructuringElement(shape=shape, ksize=size)
+    # define structuring element for opening
+    kernel_opening = cv2.getStructuringElement(
+        shape=shape_opening, ksize=size_opening)
 
     # remove noise
     image_opening = cv2.morphologyEx(
-        src=binary_image, op=cv2.MORPH_OPEN, kernel=kernel)
+        src=binary_image, op=cv2.MORPH_OPEN, kernel=kernel_opening)
 
     # write out image
     cv2.imwrite("steps/step_7_opening.jpg", image_opening)
 
+    # define structuring element for opening
+    kernel_closing = cv2.getStructuringElement(
+        shape=shape_closing, ksize=size_closing)
+
     # close small holes inside the foreground objects, or small black points on the object
     image_closing = cv2.morphologyEx(
-        src=image_opening, op=cv2.MORPH_CLOSE, kernel=kernel)
+        src=image_opening, op=cv2.MORPH_CLOSE, kernel=kernel_closing)
 
     # write out image
-    cv2.imwrite("steps/step_7_noise_removed.jpg", image_closing)
+    cv2.imwrite("steps/step_7_closing.jpg", image_closing)
 
     return image_closing
 
@@ -200,7 +205,7 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
     digit_count = 0
 
     # loop over each of the digits
-    for c in contours_of_digits:
+    for c in contours_of_digits[0]:
 
         # extract the digit ROI (region of interest)
         (x, y, w, h) = cv2.boundingRect(c)
@@ -216,6 +221,8 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
         (roiH, roiW) = roi.shape
         (dW, dH) = (int(roiW * alpha), int(roiH * beta))
         dHC = int(roiH * gamma)
+
+        # To do: if ROI is greater than a certain width, than try to identiy 7 segments. If ROI is less than certain width, then idently 2 segments (can be 1)
 
         # define the set of 7 segments
         segments = [
@@ -235,7 +242,9 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
             segROI = roi[yA:yB, xA:xB]
             total = cv2.countNonZero(segROI)
             area = (xB - xA) * (yB - yA)
-
+            cv2.imshow(mat=segROI, winname='gray')
+            cv2.waitKey()
+            print(xB, xA, yB, yA)
             # if the total number of non-zero pixels is greater than 50% of the area, mark the segment as "on"
             if total / float(area) > min_fill_area:
                 on[i] = 1

@@ -8,7 +8,7 @@ import imutils
 import functions as f
 
 # step 0: read the image
-image_original = f.read_image("examples/thermostat.jpg")
+image_original = f.read_image("examples/peter_5.jpg")
 
 # step 1: resize the image
 image_resized = f.resize_image(image=image_original, image_height=500)
@@ -34,11 +34,11 @@ display_binary = f.make_pixels_black_or_white(
 
 # step 7: remove noise from display
 display_binary_sharp = f.remove_noise_from_image(
-    display_binary, shape=cv2.MORPH_ELLIPSE, size=(8, 12))
+    display_binary, shape_opening=cv2.MORPH_ELLIPSE, shape_closing=cv2.MORPH_ELLIPSE, size_opening=(1, 1), size_closing=(10, 50))
 
 # step 8: find digit areas
 contoursOfDigits = f.find_digit_areas(
-    binary_display_without_noise=display_binary_sharp, display=display, min_width_digit_area=100, max_width_digit_area=170, min_height_digit_area=180, max_height_digit_area=250)
+    binary_display_without_noise=display_binary_sharp, display=display, min_width_digit_area=50, max_width_digit_area=200, min_height_digit_area=250, max_height_digit_area=400)
 
 # step 9: read digits
 result = f.read_digits(
