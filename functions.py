@@ -163,36 +163,32 @@ def find_digit_areas(binary_display_without_noise, display, min_width_digit_area
         # compute the bounding box of the contour
         (x, y, w, h) = cv2.boundingRect(c)
 
-        # Draw a red box around all digit area candidates
-        cv2.rectangle(display, (x, y), (x + w, y + h), (0, 0, 255), 1)
+        # Draw a blue box around all digit area candidates with
+        cv2.rectangle(display, (x, y), (x + w, y + h), (255, 0, 0), 1)
 
         # if the contour is sufficiently large, it must be a digit
         if (w >= min_width_digit_area and w <= max_width_digit_area) and (h >= min_height_digit_area and h <= max_height_digit_area):
             contoursOfDigits.append(c)
 
-            # Draw a green box around the contours where a digit is
-            cv2.rectangle(display, (x, y), (x + w, y + h), (0, 255, 0), 1)
+            # Draw a thick blue box around the contours where a digit is
+            cv2.rectangle(display, (x, y), (x + w, y + h),
+                          (255, 0, 0), 3)
 
     cv2.imwrite("steps/step_8_digit_areas.jpg", display)
 
     return contoursOfDigits
 
 
-def read_digits(binary_display_without_noise, display, contours_of_digits, alpha=0.25, beta=0.15, gamma=0.05, min_fill_area=0.5, min_width_digit_1=20, max_width_digit_1=60):
+def read_digits(binary_display_without_noise, display, contours_of_digits, alpha=0.25, beta=0.15, gamma=0.05, min_fill_area=0.5, min_width_digit_1=20, max_width_digit_1=60, bottom_right_segment_offset_to_left=5):
 
-    # define the dictionary of digit segments so we can identify each digit on the thermostat
-    DIGITS_LOOKUP = {
-        (1, 1, 1, 0, 1, 1, 1): 0,
-        (0, 0, 1, 0, 0, 1, 0): 1,
-        (1, 0, 1, 1, 1, 1, 0): 2,
-        (1, 0, 1, 1, 0, 1, 1): 3,
-        (0, 1, 1, 1, 0, 1, 0): 4,
-        (1, 1, 0, 1, 0, 1, 1): 5,
-        (1, 1, 0, 1, 1, 1, 1): 6,
-        (1, 0, 1, 0, 0, 1, 0): 7,
-        (1, 1, 1, 1, 1, 1, 1): 8,
-        (1, 1, 1, 1, 0, 1, 1): 9
-    }
+    # w = width of ROI
+    # dw = width of vertical segment
+    # h = height of ROI
+    # dh = height of horizontal segment
+    # dHC = half the height of the horizontal center segment
+    # alpha = dw / w
+    # beta = dh / h
+    # gamma = dHC / h
 
     # sort the contours from left-to-right
     contours_of_digits = contours.sort_contours(
@@ -210,65 +206,99 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
         # extract the digit ROI (region of interest)
         (x, y, w, h) = cv2.boundingRect(c)
         roi = binary_display_without_noise[y:y + h, x:x + w]
+        roi_color = display[y:y + h, x:x + w]
 
         # Increase counter
         digit_count = digit_count + 1
-
-        # Write out image of digit ROI
-        cv2.imwrite("steps/step_9_RIO_" + str(digit_count) + ".jpg", roi)
 
         # compute the width and height of each of the 7 segments we are going to examine
         (roiH, roiW) = roi.shape
         (dW, dH) = (int(roiW * alpha), int(roiH * beta))
         dHC = int(roiH * gamma)
 
-        # To do: if ROI is greater than a certain width, than try to identiy 7 segments. If ROI is less than certain width, then idently 2 segments (can be 1)
+        # ROI is greater than a certain width, than define 7 segments. If ROI is less than certain width, then define 2 segments (can be 1)
+        if (w >= min_width_digit_1 and w <= max_width_digit_1):
 
-        if (roiW >= min_width_digit_1 and roiW <= max_width_digit_1):
+            # 2 segments
+            DIGITS_LOOKUP = {
+                (1, 1): 1
+            }
 
-            # the ROI is narrow so it can only be a 1
-            digits.append(1)
+            segments = [
+                ((0, 0), (w, h // 2 - dHC)),  # top
+                # bottom
+                ((0, h // 2 + dHC),
+                 (w, h))
+            ]
+
+            on = [0] * len(segments)
 
         else:
 
-            # define the set of 7 segments
+            # 7 segments
+            DIGITS_LOOKUP = {
+                (1, 1, 1, 0, 1, 1, 1): 0,
+                (0, 0, 1, 0, 0, 1, 0): 1,
+                (1, 0, 1, 1, 1, 1, 0): 2,
+                (1, 0, 1, 1, 0, 1, 1): 3,
+                (0, 1, 1, 1, 0, 1, 0): 4,
+                (1, 1, 0, 1, 0, 1, 1): 5,
+                (1, 1, 0, 1, 1, 1, 1): 6,
+                (1, 0, 1, 0, 0, 1, 0): 7,
+                (1, 1, 1, 1, 1, 1, 1): 8,
+                (1, 1, 1, 1, 0, 1, 1): 9
+            }
+
             segments = [
                 ((0, 0), (w, dH)),  # top
                 ((0, 0), (dW, h // 2)),  # top-left
                 ((w - dW, 0), (w, h // 2)),  # top-right
                 ((0, (h // 2) - dHC), (w, (h // 2) + dHC)),  # center
                 ((0, h // 2), (dW, h)),  # bottom-left
-                ((w - dW, h // 2), (w, h)),  # bottom-right
+                # bottom-right
+                ((w - dW - bottom_right_segment_offset_to_left, h // 2),
+                 (w - bottom_right_segment_offset_to_left, h)),
                 ((0, h - dH), (w, h))  # bottom
             ]
+
             on = [0] * len(segments)
 
-            # sort the contours from left-to-right, then initialize the actual digits themselves loop over the segments
-            for (i, ((xA, yA), (xB, yB))) in enumerate(segments):
-                # extract the segment ROI, count the total number of thresholded pixels in the segment, and then compute the area of the segment
-                segROI = roi[yA:yB, xA:xB]
-                total = cv2.countNonZero(segROI)
-                area = (xB - xA) * (yB - yA)
-                # cv2.imshow(mat=segROI, winname='gray')
-                # cv2.waitKey()
-                # print(xB, xA, yB, yA)
-                # if the total number of non-zero pixels is greater than 50% of the area, mark the segment as "on"
-                if total / float(area) > min_fill_area:
-                    on[i] = 1
+        # sort the contours from left-to-right, then initialize the actual digits themselves loop over the segments
+        for (i, ((xA, yA), (xB, yB))) in enumerate(segments):
+            # extract the segment ROI, count the total number of thresholded pixels in the segment, and then compute the area of the segment
+            segROI = roi[yA:yB, xA:xB]
+            total = cv2.countNonZero(segROI)
+            area = (xB - xA) * (yB - yA)
 
-            # lookup the digit and draw it on the image
-            digit = DIGITS_LOOKUP[tuple(on)]
-            digits.append(digit)
-            cv2.rectangle(display, (x, y), (x + w, y + h), (0, 255, 0), 1)
-            # cv2.putText(display, str(digit), (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
+            # if the total number of non-zero pixels is greater than 50% of the area, mark the segment as "on"
+            if total / float(area) > min_fill_area:
+                on[i] = 1
+                # Draw green rectangle around segment if filled
+                cv2.rectangle(roi_color, (xA, yA),
+                              (xB, yB), (0, 255, 0), 3)
+            else:
+                on[i] = 0
+                # draw a red rectangle around segment if not filled
+                cv2.rectangle(roi_color, (xA, yA),
+                              (xB, yB), (0, 0, 255), 1)
+
+        # Write out image of digit ROI
+        cv2.imwrite("steps/step_9_RIO_" +
+                    str(digit_count) + ".jpg", roi_color)
+
+        # lookup the digit and draw it on the image
+        digit = DIGITS_LOOKUP[tuple(on)]
+        digits.append(digit)
+        cv2.putText(display, str(digit), (x, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 0), 2)
 
     # Make image bigger
     display = resize_image(display, image_height=300)
 
     # Write out image
-    cv2.imwrite("steps/step_9_result.jpg", display)
+    cv2.imwrite("steps/result.jpg", display)
 
-    cv2.imshow(winname="Result is " + str(digits), mat=display)
-    cv2.waitKey()
+    # cv2.imshow(winname="Result is " + str(digits), mat=display)
+    # cv2.waitKey()
 
     return digits
