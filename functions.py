@@ -178,7 +178,7 @@ def find_digit_areas(binary_display_without_noise, display, min_width_digit_area
     return contoursOfDigits
 
 
-def read_digits(binary_display_without_noise, display, contours_of_digits, alpha=0.25, beta=0.15, gamma=0.05, min_fill_area=0.5):
+def read_digits(binary_display_without_noise, display, contours_of_digits, alpha=0.25, beta=0.15, gamma=0.05, min_fill_area=0.5, min_width_digit_1=20, max_width_digit_1=60):
 
     # define the dictionary of digit segments so we can identify each digit on the thermostat
     DIGITS_LOOKUP = {
@@ -205,7 +205,7 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
     digit_count = 0
 
     # loop over each of the digits
-    for c in contours_of_digits[0]:
+    for c in contours_of_digits:
 
         # extract the digit ROI (region of interest)
         (x, y, w, h) = cv2.boundingRect(c)
@@ -224,36 +224,43 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
 
         # To do: if ROI is greater than a certain width, than try to identiy 7 segments. If ROI is less than certain width, then idently 2 segments (can be 1)
 
-        # define the set of 7 segments
-        segments = [
-            ((0, 0), (w, dH)),  # top
-            ((0, 0), (dW, h // 2)),  # top-left
-            ((w - dW, 0), (w, h // 2)),  # top-right
-            ((0, (h // 2) - dHC), (w, (h // 2) + dHC)),  # center
-            ((0, h // 2), (dW, h)),  # bottom-left
-            ((w - dW, h // 2), (w, h)),  # bottom-right
-            ((0, h - dH), (w, h))  # bottom
-        ]
-        on = [0] * len(segments)
+        if (roiW >= min_width_digit_1 and roiW <= max_width_digit_1):
 
-        # sort the contours from left-to-right, then initialize the actual digits themselves loop over the segments
-        for (i, ((xA, yA), (xB, yB))) in enumerate(segments):
-            # extract the segment ROI, count the total number of thresholded pixels in the segment, and then compute the area of the segment
-            segROI = roi[yA:yB, xA:xB]
-            total = cv2.countNonZero(segROI)
-            area = (xB - xA) * (yB - yA)
-            cv2.imshow(mat=segROI, winname='gray')
-            cv2.waitKey()
-            print(xB, xA, yB, yA)
-            # if the total number of non-zero pixels is greater than 50% of the area, mark the segment as "on"
-            if total / float(area) > min_fill_area:
-                on[i] = 1
+            # the ROI is narrow so it can only be a 1
+            digits.append(1)
 
-        # lookup the digit and draw it on the image
-        digit = DIGITS_LOOKUP[tuple(on)]
-        digits.append(digit)
-        cv2.rectangle(display, (x, y), (x + w, y + h), (0, 255, 0), 1)
-        # cv2.putText(display, str(digit), (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
+        else:
+
+            # define the set of 7 segments
+            segments = [
+                ((0, 0), (w, dH)),  # top
+                ((0, 0), (dW, h // 2)),  # top-left
+                ((w - dW, 0), (w, h // 2)),  # top-right
+                ((0, (h // 2) - dHC), (w, (h // 2) + dHC)),  # center
+                ((0, h // 2), (dW, h)),  # bottom-left
+                ((w - dW, h // 2), (w, h)),  # bottom-right
+                ((0, h - dH), (w, h))  # bottom
+            ]
+            on = [0] * len(segments)
+
+            # sort the contours from left-to-right, then initialize the actual digits themselves loop over the segments
+            for (i, ((xA, yA), (xB, yB))) in enumerate(segments):
+                # extract the segment ROI, count the total number of thresholded pixels in the segment, and then compute the area of the segment
+                segROI = roi[yA:yB, xA:xB]
+                total = cv2.countNonZero(segROI)
+                area = (xB - xA) * (yB - yA)
+                # cv2.imshow(mat=segROI, winname='gray')
+                # cv2.waitKey()
+                # print(xB, xA, yB, yA)
+                # if the total number of non-zero pixels is greater than 50% of the area, mark the segment as "on"
+                if total / float(area) > min_fill_area:
+                    on[i] = 1
+
+            # lookup the digit and draw it on the image
+            digit = DIGITS_LOOKUP[tuple(on)]
+            digits.append(digit)
+            cv2.rectangle(display, (x, y), (x + w, y + h), (0, 255, 0), 1)
+            # cv2.putText(display, str(digit), (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
 
     # Make image bigger
     display = resize_image(display, image_height=300)
