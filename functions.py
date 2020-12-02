@@ -17,8 +17,13 @@ def read_image(path):
     return image
 
 
-def resize_image(image, image_height=500):
+def resize_image(image, image_height=500, estimated_display_region=None):
     # step 1: resize the image
+
+    # cut to estimated region
+    if estimated_display_region is not None:
+        image = image[estimated_display_region[0]:estimated_display_region[2],
+                      estimated_display_region[1]:estimated_display_region[3]].copy()
 
     # resize image
     image_resized = imutils.resize(image=image, height=image_height)
@@ -67,9 +72,10 @@ def get_image_edges(image, threshold_1=50, threshold_2=200, edges=255):
     return image_edges
 
 
-def extract_display(image_resized, image_grayed, image_edged, epsilon_factor=0.02):
-    # step 5: find contours in the edge map, then sort them by their size in descending order
+def extract_display(image_resized, image_grayed, image_edged, epsilon_factor=0.02, width_display=[650, 850], height_display=[250, 350]):
+    # step 5: find contours in the edge map
 
+    # get contours in edge map
     contours = cv2.findContours(image_edged.copy(), cv2.RETR_EXTERNAL,
                                 cv2.CHAIN_APPROX_SIMPLE)
     contours = imutils.grab_contours(contours)
@@ -82,12 +88,30 @@ def extract_display(image_resized, image_grayed, image_edged, epsilon_factor=0.0
         # approximate the contour
         peri = cv2.arcLength(c, True)
         approx = cv2.approxPolyDP(
-            curve=c, epsilon=epsilon_factor * peri, closed=True)
+            curve=c, epsilon=epsilon_factor*peri, closed=True)
 
+        # draw rectangle around the contour
+        (x, y, w, h) = cv2.boundingRect(approx)
+        cv2.rectangle(image_resized, (x, y),
+                      (x + w, y + h), (255, 0, 0), 3)
+
+        # print((x, y, w, h), len(approx) == 4 and w >= width_display[0] and w <= width_display[1]
+        #       and h >= height_display[0] and h <= height_display[1])
         # if the contour has four vertices, then we have found the display
-        if len(approx) == 4:
+        # display must be within min and max sizes
+        if len(approx) == 4 and w >= width_display[0] and w <= width_display[1] and h >= height_display[0] and h <= height_display[1]:
+
             countoursOfDisplay = approx
+
+            # draw rectangle around the display
+            (x, y, w, h) = cv2.boundingRect(approx)
+            cv2.rectangle(image_resized, (x, y),
+                          (x + w, y + h), (0, 255, 0), 5)
+
             break
+
+    # draw rectangle around the display
+    cv2.imwrite("steps/step_5_display_full.jpg", image_resized)
 
     # extract the thermostat display, apply a perspective transform to it
     image_display_grayed = four_point_transform(
@@ -96,9 +120,10 @@ def extract_display(image_resized, image_grayed, image_edged, epsilon_factor=0.0
         image_resized, countoursOfDisplay.reshape(4, 2))
 
     # resize images
-    image_display_grayed = resize_image(
-        image_display_grayed, image_height=500)
-    image_display = resize_image(image_display, image_height=500)
+    image_display_grayed = imutils.resize(
+        image=image_display_grayed, height=500)
+    image_display = imutils.resize(
+        image=image_display, height=500)
 
     # write out image
     cv2.imwrite("steps/step_5_display.jpg", image_display)
@@ -163,7 +188,7 @@ def find_digit_areas(binary_display_without_noise, display, min_width_digit_area
         # compute the bounding box of the contour
         (x, y, w, h) = cv2.boundingRect(c)
 
-        # Draw a blue box around all digit area candidates with
+        # draw a blue box around all digit area candidates with
         cv2.rectangle(display, (x, y), (x + w, y + h), (255, 0, 0), 1)
 
         # if the contour is sufficiently large, it must be a digit
@@ -293,7 +318,9 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
                     cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 0), 2)
 
     # Make image bigger
-    display = resize_image(display, image_height=300)
+    # display = resize_image(display, image_height=300)
+    display = imutils.resize(
+        image=display, height=300)
 
     # Write out image
     cv2.imwrite("steps/result.jpg", display)

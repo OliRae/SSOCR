@@ -11,7 +11,8 @@ import functions as f
 image_original = f.read_image("examples/peter_5.jpg")
 
 # step 1: resize the image
-image_resized = f.resize_image(image=image_original, image_height=500)
+image_resized = f.resize_image(
+    image=image_original, image_height=500, estimated_display_region=None)
 
 # step 2: make image gray
 image_grayed = f.gray_image(image=image_resized)
@@ -26,7 +27,7 @@ image_edged = f.get_image_edges(image=image_blurred, threshold_1=50,
 
 # step 5: find display
 display_grayed, display = f.extract_display(
-    image_resized=image_resized, image_grayed=image_grayed, image_edged=image_edged)
+    image_resized=image_resized, image_grayed=image_grayed, image_edged=image_edged, width_display=[300, 400], height_display=[80, 120])
 
 # step 6: make display binary (black or white)
 display_binary = f.make_pixels_black_or_white(
