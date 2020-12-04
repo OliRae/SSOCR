@@ -111,24 +111,24 @@ def read_digits_from_display(image, countours_of_display):
 directory = "images_set_1"
 for path in os.listdir(directory):
     full_path = os.path.join(directory, path)
-       try:
+    try:
 
-            # load image
-            image = load_image(full_path)
+        # load image
+        image = load_image(full_path)
 
-            # find the display on the image
-            contours_of_display = find_display_on_image(image)
+        # find the display on the image
+        contours_of_display = find_display_on_image(image)
 
-            # if the display is not found, than take default location (requires fixed setup)
-            if contours_of_display is None:
-                contours_of_display = np.array(
-                    [[[133, 173]], [[139, 239]], [[328, 239]], [[324, 176]]])
+        # if the display is not found, than take default location (requires fixed setup)
+        if contours_of_display is None:
+            contours_of_display = np.array(
+                [[[133, 173]], [[139, 239]], [[328, 239]], [[324, 176]]])
 
-            # read digits on display
-            result = read_digits_from_display(image, contours_of_display)
+        # read digits on display
+        result = read_digits_from_display(image, contours_of_display)
 
-            # print number on display
-            print(result)
+        # print number on display
+        print(result)
 
-        except:
-            print(full_path, " - Unable to read digits")
+    except:
+        print(full_path, " - Unable to read digits")
