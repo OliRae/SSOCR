@@ -37,11 +37,6 @@ def resize_image(image, image_height=500):
         object: image with given height
     """
 
-    # cut to estimated region
-    # if estimated_display_region is not None:
-    #     image = image[estimated_display_region[0]:estimated_display_region[2],
-    #                   estimated_display_region[1]:estimated_display_region[3]].copy()
-
     # resize image
     image_resized = imutils.resize(image=image, height=image_height)
 
@@ -119,9 +114,9 @@ def get_image_edges(image, threshold_1=50, threshold_2=200, edges=255):
     return image_edges
 
 
-def extract_display(image_resized, image_grayed, image_edged, accuracy=0.02, width_display=[650, 850], height_display=[250, 350]):
+def identify_display_contours(image_resized, image_grayed, image_edged, accuracy=0.02, width_display=[650, 850], height_display=[250, 350]):
     """
-    Extract the display from the image
+    identify contours of the display from the image
 
     Args:
         image_resized (object): image with specific height
@@ -132,7 +127,7 @@ def extract_display(image_resized, image_grayed, image_edged, accuracy=0.02, wid
         height_display (int[min, max]): minimum and maximum height of display
 
     Returns:
-        object: image with rectange around display, image of display
+        four contour points of image
     """
 
     # get contours in edge map
@@ -158,7 +153,7 @@ def extract_display(image_resized, image_grayed, image_edged, accuracy=0.02, wid
 
         # if the contour has four vertices, then we have found the display
         # display must be within min and max sizes
-        if len(approx) == 4 and w >= width_display[0] and w <= width_display[1] and h >= height_display[0] and h <= height_display[1]:
+        if countoursOfDisplay is None and len(approx) == 4 and w >= width_display[0] and w <= width_display[1] and h >= height_display[0] and h <= height_display[1]:
 
             countoursOfDisplay = approx
 
@@ -174,7 +169,6 @@ def extract_display(image_resized, image_grayed, image_edged, accuracy=0.02, wid
             cv2.putText(img=image_annotated, text=('vertices: '+str(len(approx))+' | dim: '+str(w)+' x '+str(h)), org=(x, y-10),
                         fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.4, color=(0, 255, 0))
 
-            break
         else:
             # if conditions are not met, just annotate the candidate
 
@@ -193,22 +187,32 @@ def extract_display(image_resized, image_grayed, image_edged, accuracy=0.02, wid
     # draw rectangle around the display
     cv2.imwrite("steps/step_5_display_full.jpg", image_annotated)
 
-    # extract the thermostat display, apply a perspective transform to it
-    image_display_grayed = four_point_transform(
-        image_grayed, countoursOfDisplay.reshape(4, 2))
-    image_display = four_point_transform(
-        image_resized, countoursOfDisplay.reshape(4, 2))
+    return countoursOfDisplay
 
-    # resize images
-    image_display_grayed = imutils.resize(
-        image=image_display_grayed, height=500)
+
+def extract_display_from_image(image_resized, countours_of_display):
+    """
+    Extract the display from the image
+
+    Args:
+        image_resized (object): image with specific height
+        contours of display (array): x and y coordinates of the 4 corners of display
+
+    Returns:
+        image of display
+    """
+    # extract the display, make it a rectangular
+    image_display = four_point_transform(
+        image_resized, countours_of_display.reshape(4, 2))
+
+    # resize image
     image_display = imutils.resize(
         image=image_display, height=500)
 
     # write out image
-    cv2.imwrite("steps/step_5_display.jpg", image_display_grayed)
+    cv2.imwrite("steps/step_5_display.jpg", image_display)
 
-    return image_display_grayed, image_display
+    return image_display
 
 
 def increase_contrast(image, threshold=2, size=(6, 6)):
@@ -216,8 +220,8 @@ def increase_contrast(image, threshold=2, size=(6, 6)):
     Increase contrast of image
 
     Args:
-        threshold (int): bigger number is results in higher contrast
-        size (int, int): bigger number is results in higher contrast
+        threshold(int): bigger number is results in higher contrast
+        size(int, int): bigger number is results in higher contrast
 
     Returns:
         object: image with increased contrast
@@ -234,11 +238,11 @@ def increase_contrast(image, threshold=2, size=(6, 6)):
 
 def make_pixels_black_or_white(image, threshold_1=0, threshold_2=0):
     """
-    Make image binary (black or white)
+    Make image binary(black or white)
 
     Args:
-        threshold_1 (int): higher number increases black/white
-        threshold_2 (int): higher number increases black/white
+        threshold_1(int): higher number increases black/white
+        threshold_2(int): higher number increases black/white
 
     Returns:
         object: binary image
@@ -257,10 +261,10 @@ def make_pixels_black_or_white(image, threshold_1=0, threshold_2=0):
 
 def remove_noise_from_image(binary_image, shape_opening=cv2.MORPH_ELLIPSE, shape_closing=cv2.MORPH_ELLIPSE, size_opening=(1, 5), size_closing=(1, 5)):
     """
-    Make image binary (black or white)
+    Make image binary(black or white)
 
     Args:
-        image (object): a greyscale image
+        image(object): a greyscale image
         shape_opening:
         shape_closing:
         size_opening:
@@ -301,8 +305,8 @@ def find_digit_areas(binary_display_without_noise, display, min_width_digit_area
     Find areas of digits
 
     Args:
-        binary_display_without_noise (object): image of display without noise
-        display (object): image of display
+        binary_display_without_noise(object): image of display without noise
+        display(object): image of display
         min_width_digit_area:
         max_width_digit_area:
         min_height_digit_area:
@@ -369,8 +373,8 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
     Read digits on display
 
     Args:
-        binary_display_without_noise (object): image of display without noise
-        display (object): image of display
+        binary_display_without_noise(object): image of display without noise
+        display(object): image of display
         contours_of_digits:
         alpha: width of vertical segment / width of ROI
         beta: height of horizontal segment / height of ROI

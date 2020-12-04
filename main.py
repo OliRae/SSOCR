@@ -1,34 +1,48 @@
 # import the necessary packages
 import cv2
-from imutils.perspective import four_point_transform
-from imutils import contours
+import numpy as np
 import imutils
 import os
+from imutils import contours
+from imutils.perspective import four_point_transform
 
 # import user defined functions
 import functions as f
 
 
-def read_digits_from_display(path):
+def load_image(path):
     """
-    Read digits from display
+    loads and resizes an image
+
+    Args:
+        path (str): path to image
+
+    Returns:
+        object: image
+    """
+
+    # read image
+    image = f.read_image(path)
+
+    # resize image
+    image_resized = f.resize_image(image=image, image_height=500)
+
+    return image_resized
+
+
+def find_display_on_image(image):
+    """
+    Find display on image
 
     Args:
         path (str): path to image with a display
 
     Returns:
-        number on display
+        four contour points of image
     """
 
-    # step 0: read the image
-    image_original = f.read_image(path=path)
-
-    # step 1: resize the image
-    image_resized = f.resize_image(
-        image=image_original, image_height=500)
-
     # step 2: make image gray
-    image_grayed = f.gray_image(image=image_resized)
+    image_grayed = f.gray_image(image=image)
 
     # step 3: blur image
     image_blurred = f.blur_image(
@@ -39,8 +53,30 @@ def read_digits_from_display(path):
                                     threshold_2=150, edges=255)
 
     # step 5: find display
-    display_grayed, display = f.extract_display(
-        image_resized=image_resized, image_grayed=image_grayed, image_edged=image_edged, accuracy=0.05, width_display=[190, 200], height_display=[65, 75])
+    countours_of_display = f.identify_display_contours(
+        image_resized=image, image_grayed=image_grayed, image_edged=image_edged, accuracy=0.05, width_display=[190, 200], height_display=[65, 75])
+
+    return countours_of_display
+
+
+def read_digits_from_display(image, countours_of_display):
+    """
+    Read digits from display. User can provide x, y, w, h of display region. If not provided, it will try to identify region automatically.
+
+    Args:
+        path (str): path to image
+        estimated_display_region (dbl): optional; x, y, w, h of display
+
+    Returns:
+        number on display
+    """
+
+    # extract display
+    display = f.extract_display_from_image(
+        image_resized=image, countours_of_display=countours_of_display)
+
+    # make image grey
+    display_grayed = f.gray_image(image=display)
 
     # step 6: increase contrast of image
     display_contrast = f.increase_contrast(
@@ -66,20 +102,33 @@ def read_digits_from_display(path):
     result = f.convert_to_number(digits)
 
     # write image with annotations out
-    cv2.imwrite("images_result/"+str(os.path.splitext(os.path.basename(
-        path))[0])+"_"+str(result)+".jpg", display_annotated)
+    cv2.imwrite("images_result/"+str(result)+".jpg", display_annotated)
 
     return result
 
 
-result = read_digits_from_display("images_set_1/IMG_5289.JPG")
-# # loop through all images in dataset
-# directory = "images_set_1"
-# for path in os.listdir(directory):
-#     full_path = os.path.join(directory, path)
-#     if os.path.isfile(full_path):
-#         try:
-#             result = read_digits_from_display(full_path)
-#             print(full_path, result)
-#         except:
-#             print(full_path, "Unable to read digits")
+# loop through all images in directory
+directory = "images_set_1"
+for path in os.listdir(directory):
+    full_path = os.path.join(directory, path)
+       try:
+
+            # load image
+            image = load_image(full_path)
+
+            # find the display on the image
+            contours_of_display = find_display_on_image(image)
+
+            # if the display is not found, than take default location (requires fixed setup)
+            if contours_of_display is None:
+                contours_of_display = np.array(
+                    [[[133, 173]], [[139, 239]], [[328, 239]], [[324, 176]]])
+
+            # read digits on display
+            result = read_digits_from_display(image, contours_of_display)
+
+            # print number on display
+            print(result)
+
+        except:
+            print(full_path, " - Unable to read digits")
