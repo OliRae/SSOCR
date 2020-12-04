@@ -249,7 +249,7 @@ def make_pixels_black_or_white(image, threshold_1=0, threshold_2=0):
                                          thresholdType=cv2.THRESH_BINARY_INV, blockSize=threshold_1, C=threshold_2)
 
     # write out image
-    cv2.imwrite("steps/step_6_black_or_white_pixels.jpg",
+    cv2.imwrite("steps/step_7_black_or_white_pixels.jpg",
                 binary_image)
 
     return binary_image
@@ -280,7 +280,7 @@ def remove_noise_from_image(binary_image, shape_opening=cv2.MORPH_ELLIPSE, shape
         src=image, op=cv2.MORPH_OPEN, kernel=kernel_opening)
 
     # write out image
-    cv2.imwrite("steps/step_7_1_opening.jpg", image)
+    cv2.imwrite("steps/step_8_1_opening.jpg", image)
 
     # define structuring element for closing
     kernel_closing = cv2.getStructuringElement(
@@ -291,7 +291,7 @@ def remove_noise_from_image(binary_image, shape_opening=cv2.MORPH_ELLIPSE, shape
         src=image, op=cv2.MORPH_CLOSE, kernel=kernel_closing)
 
     # write out image
-    cv2.imwrite("steps/step_7_2_closing.jpg", image)
+    cv2.imwrite("steps/step_8_2_closing.jpg", image)
 
     return image
 
@@ -359,7 +359,7 @@ def find_digit_areas(binary_display_without_noise, display, min_width_digit_area
             cv2.putText(img=image_annotated, text=('dim: '+str(w)+' x '+str(h)), org=(x, y-10),
                         fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0, 0, 255))
 
-    cv2.imwrite("steps/step_8_digit_areas.jpg", image_annotated)
+    cv2.imwrite("steps/step_9_digit_areas.jpg", image_annotated)
 
     return contoursOfDigits
 
@@ -488,7 +488,7 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
                               (xB, yB), (0, 0, 255), 1)
 
         # Write out image of digit ROI
-        cv2.imwrite("steps/step_9_RIO_" +
+        cv2.imwrite("steps/step_10_RIO_" +
                     str(digit_count) + ".jpg", roi_color)
 
         # lookup the digit and draw it on the image
@@ -505,7 +505,7 @@ def read_digits(binary_display_without_noise, display, contours_of_digits, alpha
     # Write out image
     cv2.imwrite("steps/result.jpg", display_annotated)
 
-    return digits
+    return digits, display_annotated
 
 
 def convert_to_number(array):
@@ -515,10 +515,12 @@ def convert_to_number(array):
     """
     # convert digits array to single number
     result = 0
+    digit_place = 0
 
     for d in list(reversed(array)):
 
-        multiplicator = 10 ** (list(reversed(array)).index(d))
-        result += d * multiplicator
+        multiplicator = 10 ** (digit_place)
+        result = result + d * multiplicator
+        digit_place = digit_place + 1
 
     return(result)
